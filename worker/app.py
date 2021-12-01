@@ -11,7 +11,7 @@ from model import *
 app = Flask(__name__)
 
 app.config['MAX_CONTENT_PATH'] = 16 * 1024 * 1024  # bytes
-app.config['UPLOAD_FOLDER'] = './files'
+app.config['UPLOAD_FOLDER'] = './worker/files'
 ALLOWED_EXTENSIONS = {'py'}
 DEFAULT_TIMEOUT = 5
 JOB_COUNT = 0
