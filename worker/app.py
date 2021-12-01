@@ -1,5 +1,6 @@
 import os
 import subprocess
+import sys
 import uuid
 
 import psutil as psutil
@@ -101,4 +102,4 @@ def get_timeout(timeout: int):
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', port=int(sys.argv[1]))
