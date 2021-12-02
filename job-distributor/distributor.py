@@ -1,6 +1,6 @@
 import pickle
 import time
-import traceback
+import random
 
 import redis
 import redis_lock
@@ -28,6 +28,7 @@ class Distributor(metaclass=Singleton):
         :return: None
         """
         # spawner.spawn_base_workers()
+        CONN.flushall()
         lock = redis_lock.Lock(CONN, "write-lock")
         try:
             if lock.acquire(blocking=False):
@@ -46,6 +47,20 @@ class Distributor(metaclass=Singleton):
             if lock.locked():
                 lock.release()
         return None
+
+
+    @staticmethod
+    def get_worker_node():
+        if config.ALGORITHM == "LRU":
+            return Distributor.get_lru_node()
+        elif config.ALGORITHM == "RANDOM":
+            return Distributor.get_random_node()
+        elif config.ALGORITHM == "MODULO":
+            return Distributor.get_modulo_node()
+        else:
+            return Distributor.get_lru_node()
+        return None
+
 
     @staticmethod
     def get_lru_node():
@@ -84,11 +99,164 @@ class Distributor(metaclass=Singleton):
             return Distributor.scale_nodes(all_nodes, available_nodes, operation="CLOSE")
             # return available_nodes[0]
         else:
+            print(available_nodes[0])
             return available_nodes[0]
 
         return None
 
- 
+    @staticmethod
+    def get_random_node():
+        """
+        Returns the least recently used node in the node cluster
+        :rtype: Node
+        """
+        lock = redis_lock.Lock(CONN, "write-lock")
+        CONN.hgetall(name="nodes")
+        nodes = CONN.hgetall(name="nodes").values()
+        available_nodes = sorted([pickle.loads(n) for n in nodes if pickle.loads(n).status == 0],
+                                 key=lambda x: x.last_executed, reverse=False)
+        busy_nodes = sorted([pickle.loads(n) for n in nodes if pickle.loads(n).status == 1],
+                            key=lambda x: x.last_executed, reverse=False)
+        all_nodes = config.NODE_PORTS
+        cpu_util = Distributor.get_cpu_util(available_nodes)
+
+        print("*****")
+        print("all_nodes", len(all_nodes))
+        print("available_nodes", len(available_nodes))
+        print("busy_nodes", len(busy_nodes))
+        print("NODE_PORTS", len(config.NODE_PORTS))
+        print("cpu_util", cpu_util)
+        print("DEFAULT_NODES", config.DEFAULT_NODES)
+
+        if (len(all_nodes) <= len(busy_nodes)) \
+                and (len(available_nodes) == 0):
+            return None
+        elif len(available_nodes) == 0 or cpu_util > 50:
+            # up scale
+            print("Increasing the number of workers")
+            return Distributor.scale_nodes(all_nodes, busy_nodes, operation="CREATE")
+        elif cpu_util < 50 and len(available_nodes) > config.DEFAULT_NODES:
+            # down scale
+            print("Decreasing the number of workers")
+            return Distributor.scale_nodes(all_nodes, available_nodes, operation="CLOSE")
+            # return available_nodes[0]
+        else:
+            print(available_nodes[0])
+            return available_nodes[random.randint(0, len(available_nodes)-1)]
+
+        return None
+
+    @staticmethod
+    def get_modulo_node():
+        """
+        Returns the least recently used node in the node cluster
+        :rtype: Node
+        """
+        lock = redis_lock.Lock(CONN, "write-lock")
+        CONN.hgetall(name="nodes")
+        nodes = CONN.hgetall(name="nodes").values()
+        available_nodes = sorted([pickle.loads(n) for n in nodes if pickle.loads(n).status == 0],
+                                 key=lambda x: x.last_executed, reverse=False)
+        busy_nodes = sorted([pickle.loads(n) for n in nodes if pickle.loads(n).status == 1],
+                            key=lambda x: x.last_executed, reverse=False)
+        all_nodes = config.NODE_PORTS
+        cpu_util = Distributor.get_cpu_util(available_nodes)
+
+        print("*****")
+        print("all_nodes", len(all_nodes))
+        print("available_nodes", len(available_nodes))
+        print("busy_nodes", len(busy_nodes))
+        print("NODE_PORTS", len(config.NODE_PORTS))
+        print("cpu_util", cpu_util)
+        print("DEFAULT_NODES", config.DEFAULT_NODES)
+
+        if (len(all_nodes) <= len(busy_nodes)) \
+                and (len(available_nodes) == 0):
+            return None
+        elif len(available_nodes) == 0 or cpu_util > 50:
+            # up scale
+            print("Increasing the number of workers")
+            return Distributor.scale_nodes(all_nodes, busy_nodes, operation="CREATE")
+        elif cpu_util < 50 and len(available_nodes) > config.DEFAULT_NODES:
+            # down scale
+            print("Decreasing the number of workers")
+            return Distributor.scale_nodes(all_nodes, available_nodes, operation="CLOSE")
+            # return available_nodes[0]
+        else:
+            print(available_nodes[0])
+
+            return available_nodes[int(time.time()*1000)%(len(available_nodes)-1)]
+
+        return None
+
+    @staticmethod
+    def scale_nodes(all_nodes: [int], busy_nodes: [Node], operation: str):
+        """
+        Scale nodes according to cpu usage.
+        :return: None
+        """
+        if operation == "CREATE":
+            port = config.NODE_PORTS[0]
+            print([x.host for x in busy_nodes])
+            busy_ports = [int(x.host[-4:]) for x in busy_nodes]
+            print(busy_ports)
+            for p in config.NODE_PORTS:
+                if p not in busy_nodes:
+                    port = p
+            spawner.spawn_worker(port)
+            node = Node(host="localhost:" + str(port), status=0, last_executed=time.time() * 1000)
+            CONN.hmset(name="nodes", mapping={
+                "localhost:" + str(node): pickle.dumps(node) for node in [port]
+            })
+            return node
+        elif operation == "CLOSE":
+            spawner.close_workers([int(busy_nodes[-1].host[-4:])])
+            return busy_nodes[0]
+
+    @staticmethod
+    def get_cpu_util(nodes: [Node]):
+        cpu_utilization = 0
+        for node in nodes:
+            response = requests.get("http://" + node.host + "/status")
+            cpu_utilization += int(response.json()["cpuUsage"])
+        if len(nodes) != 0:
+            cpu_utilization = cpu_utilization / len(nodes)
+        return cpu_utilization
+
+    @staticmethod
+    def update_node_timestamp(nodes: [Node], status=1):
+        """
+        Updates the timestamp of the given nodes to current time
+        :return: None
+        """
+        lock = redis_lock.Lock(CONN, "write-lock")
+        if lock.acquire(blocking=False):
+            CONN.hmset(name="nodes", mapping={
+                node.host: pickle.dumps(
+                    Node(host=node.host, status=status, last_executed=time.time() * 1000))
+                for node in nodes})
+            [print('Updated timestamp of node: {}'.format(node.host)) for node in nodes]
+        else:
+            print("Someone else has the lock.")
+        lock.release()
+
+    @staticmethod
+    def update_node_status(nodes, status=0):
+        """
+        Updates the status of the given nodes
+        :return: None
+        """
+        lock = redis_lock.Lock(CONN, "write-lock")
+        if lock.acquire(blocking=False):
+            CONN.hmset(name="nodes", mapping={
+                "localhost:" + node: pickle.dumps(
+                    Node(host="localhost:" + node, status=0, last_executed=time.time() * 1000))
+                for node in nodes})
+            [print('Updated status of node: {}'.format(node)) for node in nodes]
+            lock.release()
+        else:
+            print("Someone else has the lock.")
+        return None
 
     @staticmethod
     def get_stats():

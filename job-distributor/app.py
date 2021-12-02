@@ -1,8 +1,5 @@
 from flask import Flask, jsonify, request, redirect
-import time
 from waitress import serve
-
-import config
 from distributor import Distributor
 
 app = Flask(__name__)
@@ -15,8 +12,7 @@ def hello_world():
 
 @app.route("/execute", methods=['POST', 'GET'])
 def execute_task():
-    print("?????????")
-    node = Distributor.get_lru_node()
+    node = Distributor.get_worker_node()
     if node is None:
         return jsonify('Limit reached')
     redirect_url = "http://{}/execute".format(node.host)
@@ -38,6 +34,6 @@ def get_stats():
     return r
 
 
-if __name__ == '__main__':
+if __name__ == 'app':
     Distributor.init_workers()
     serve(app, host='0.0.0.0', port=8081)

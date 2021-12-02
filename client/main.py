@@ -8,6 +8,7 @@ from werkzeug.utils import secure_filename
 import requests
 
 ALLOWED_EXTENSIONS = set(['txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'])
+LOAD_BALANCER_URL = "http://10.0.0.14:8081/execute"
 
 
 def allowed_file(filename):
@@ -31,15 +32,25 @@ def stats():
 @app.route('/uploader', methods=['GET', 'POST'])
 def upload_file():
     if request.method == 'POST':
-        print(request.files)
-        f = request.files['file']
-        f.save(secure_filename(f.filename))
-        with open(f.filename, 'rb') as f:
-            r = requests.post("http://172.20.20.20:8081/execute", files={'file': f})
-        if r.status_code == 200:
-            res_payload_dict = r.json()
-            print(type(res_payload_dict))
-        return jsonify(res_payload_dict)
+        try:
+            print(request.form.get('args'))
+            print(request.form.get('timeout'))
+            print(request.form.get('env'))
+            f = request.files['file']
+            f.save(secure_filename(f.filename))
+            payload = {
+                'args': request.form.get('args'),
+                'timeout': int(request.form.get('timeout'))
+            }
+            file = os.getcwd() + "/" + f.filename
+            files = [
+                ('file', ('test.py', open(file, 'rb'), 'application/octet-stream'))
+            ]
+            headers = {}
+            response = requests.request("POST", LOAD_BALANCER_URL, headers=headers, data=payload, files=files)
+            return jsonify(response.json())
+        except Exception as e:
+            return jsonify(response.content.decode())
 
 
 if __name__ == "__main__":

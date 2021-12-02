@@ -8,6 +8,7 @@ import requests
 from flask import Flask, jsonify, request
 from werkzeug.utils import secure_filename
 
+
 from model import *
 
 app = Flask(__name__)
@@ -17,7 +18,7 @@ app.config['UPLOAD_FOLDER'] = '../worker/files'
 ALLOWED_EXTENSIONS = {'py'}
 DEFAULT_TIMEOUT = 5
 JOB_COUNT = 0
-LOAD_BALANCER_URL = 'http://172.20.20.20:8081'
+LOAD_BALANCER_URL = "http://10.0.0.14:8081/"
 
 
 @app.route('/status', methods=['GET'], endpoint='status')
@@ -40,32 +41,39 @@ def execute_file():
     :return: GeneralRes
     """
     # Validate json request
-    response = GeneralRes(400, "", None, None)
-    # Validate file that needs to be executed
-    if 'file' not in request.files:
-        response.message = 'No file part in the request'
-    file = request.files['file']
-    if file.filename == '':
-        response.message = 'No file selected for execution in the request'
-    if file and allowed_file(file.filename):
-        filename = secure_filename(file.filename)
-        filename = app.config['UPLOAD_FOLDER'] + "/" + str(uuid.uuid4()) + "_" + filename
-        file.save(os.path.join(filename))
-        args = get_args(request.form.get('args'))
-        env = get_env(request.form.get('env'))
-        timeout = get_timeout(request.form.get('timeout'))
-        response = execute(filename, args, env, timeout)
-        os.remove(os.path.join(filename))
-        global JOB_COUNT
-        JOB_COUNT += 1
-    else:
-        response.message = 'Allowed file type is py'
+    try:
+        response = GeneralRes(400, "", None, None)
+        # Validate file that needs to be executed
+        if 'file' not in request.files:
+            response.message = 'No file part in the request'
+        file = request.files['file']
+        if file.filename == '':
+            response.message = 'No file selected for execution in the request'
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            filename = app.config['UPLOAD_FOLDER'] + "/" + str(uuid.uuid4()) + "_" + filename
+            file.save(os.path.join(filename))
+            args = get_args(request.values.get("args"))
+            env = get_env(request.values.get("env"))
+            timeout = get_timeout(request.values.get("timeout"))
+            response = execute(filename, str(args), env, float(timeout))
+            os.remove(os.path.join(filename))
+            global JOB_COUNT
+            JOB_COUNT += 1
+        else:
+            response.message = 'Allowed file type is py'
+    except Exception as e:
+        try:
+            requests.get(LOAD_BALANCER_URL + '/execute/update_node?node=' + str(app.config.get('port')))
+        except Exception as err:
+            response.message = 'internal server error'
+        return jsonify(response.toJSON())
     # Notify load balancer about work completion
     try:
         requests.get(LOAD_BALANCER_URL + '/execute/update_node?node=' + str(app.config.get('port')))
     except Exception as err:
         response.message = 'could not notify load balancer '
-    return response.to_json()
+    return response.toJSON()
 
 
 def execute(filename, args, env, timeout):
@@ -79,9 +87,9 @@ def execute(filename, args, env, timeout):
         error = 'Traceback (most recent call last):' + '\n'.join(
             e.output.split('Traceback (most recent call last):')[1:])
     if error != '':
-        return GeneralRes(200, "Code executed with some error", output, error)
+        return GeneralRes(200, "Code executed with some error", output.strip(), error)
     else:
-        return GeneralRes(200, "Code executed successfully", output, None)
+        return GeneralRes(200, "Code executed successfully", output.strip(), None)
 
 
 def get_args(args: str):
