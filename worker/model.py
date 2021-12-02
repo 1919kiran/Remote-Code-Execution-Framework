@@ -39,3 +39,7 @@ class GeneralRes:
         self.message = message
         self.output = output
         self.error = error
+
+    def __str__(self):
+        return "status={}, message={}, output={}, error={}".\
+            format(self.status_code, self.message, self.output, self.error)

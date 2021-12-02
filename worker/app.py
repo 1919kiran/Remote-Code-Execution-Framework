@@ -13,11 +13,11 @@ from model import *
 app = Flask(__name__)
 
 app.config['MAX_CONTENT_PATH'] = 16 * 1024 * 1024  # bytes
-app.config['UPLOAD_FOLDER'] = './worker/files'
+app.config['UPLOAD_FOLDER'] = '../worker/files'
 ALLOWED_EXTENSIONS = {'py'}
 DEFAULT_TIMEOUT = 5
 JOB_COUNT = 0
-LOAD_BALANCER_URL = 'http://localhost:8081'
+LOAD_BALANCER_URL = 'http://172.20.20.20:8081'
 
 
 @app.route('/status', methods=['GET'], endpoint='status')
@@ -26,7 +26,7 @@ def status():
     Provide current CPU utilization.
     :return: int (CPU Usage)
     """
-    return jsonify({"cpuUsage": psutil.cpu_percent(), "jobCount": JOB_COUNT}, 200)
+    return jsonify({"cpuUsage": psutil.cpu_percent(), "jobCount": JOB_COUNT})
 
 
 def allowed_file(filename):
@@ -62,7 +62,7 @@ def execute_file():
         response.message = 'Allowed file type is py'
     # Notify load balancer about work completion
     try:
-        requests.get(LOAD_BALANCER_URL + '/execute/update_node/?node=' + str(app.config.get('port')))
+        requests.get(LOAD_BALANCER_URL + '/execute/update_node?node=' + str(app.config.get('port')))
     except Exception as err:
         response.message = 'could not notify load balancer '
     return response.to_json()
@@ -107,4 +107,4 @@ def get_timeout(timeout: int):
 
 if __name__ == '__main__':
     app.config['port'] = int(sys.argv[1])
-    app.run(host='0.0.0.0', port=app.config['port'])
+    app.run(host='localhost', port=app.config['port'])
