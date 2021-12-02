@@ -4,6 +4,7 @@ import sys
 import uuid
 
 import psutil as psutil
+import requests
 from flask import Flask, jsonify, request
 from werkzeug.utils import secure_filename
 
@@ -16,7 +17,7 @@ app.config['UPLOAD_FOLDER'] = './worker/files'
 ALLOWED_EXTENSIONS = {'py'}
 DEFAULT_TIMEOUT = 5
 JOB_COUNT = 0
-LOAD_BALANCER_URL = 'localhost:8082'
+LOAD_BALANCER_URL = 'http://localhost:8081'
 
 
 @app.route('/status', methods=['GET'], endpoint='status')
@@ -60,7 +61,10 @@ def execute_file():
     else:
         response.message = 'Allowed file type is py'
     # Notify load balancer about work completion
-    # requests.get(LOAD_BALANCER_URL + '/execute/update_node/<>')
+    try:
+        requests.get(LOAD_BALANCER_URL + '/execute/update_node/?node=' + str(app.config.get('port')))
+    except Exception as err:
+        response.message = 'could not notify load balancer '
     return response.to_json()
 
 
@@ -102,4 +106,5 @@ def get_timeout(timeout: int):
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=int(sys.argv[1]))
+    app.config['port'] = int(sys.argv[1])
+    app.run(host='0.0.0.0', port=app.config['port'])
