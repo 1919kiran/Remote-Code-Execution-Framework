@@ -26,7 +26,7 @@ def Eval():
 @app.route('/stats')
 def stats():
     response = requests.get("http://localhost:8081/stats")
-    return jsonify(response.json())
+    return render_template('stats.html', data=response.json().items())
 
 
 @app.route('/uploader', methods=['GET', 'POST'])

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<style>
+    table, th, td {
+      border:1px solid black;
+    }
+</style>
+<body>
+    <div style="text-align: center;">
+        <h1>Server Cluster Statistics</h1>
+        <table style="width:50%">
+            <tr>
+                <th>Host</th>
+                <th>CPU Usage</th>
+                <th>Job Count</th>
+            </tr>
+            {% for d in data %}
+                <tr>
+                    <td>{{ d[0] }}</td>
+                    <td>{{ d[1].get('cpuUsage') }}</td>
+                    <td>{{ d[1].get('jobCount') }}</td>
+                </tr>
+            {% endfor %}
+        </table>
+    </div>
+</body>
+</html>
