@@ -10,6 +10,8 @@ We have made the load balancing algorithms configurable!
 
 
 ## 3. Auto Scaling
+![Screenshot 2021-12-02 at 5 33 54 PM](https://user-images.githubusercontent.com/51155654/144533282-b06dd749-7de2-4589-a3d0-d120aac0e3db.png)
+
 
 
 ## 4. Worker implementation
