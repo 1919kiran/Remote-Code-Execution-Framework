@@ -10,7 +10,7 @@ We have made the load balancing algorithms configurable!
 
 Algorithms:
 ### 1. Least recently used
-![image](https://user-images.githubusercontent.com/18122083/144533467-21b1ec92-0cde-4f6f-ad67-22008a80f1b8.png)
+![image](https://user-images.githubusercontent.com/18122083/144533571-ea9ce97d-79f5-43fe-806a-98bf42ebe0ba.png)
 
 ### 2. Random allocation
 
