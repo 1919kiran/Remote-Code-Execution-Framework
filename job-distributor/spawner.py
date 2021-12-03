@@ -1,16 +1,21 @@
-import subprocess
-import time
 from subprocess import Popen
+
+from flask import Flask
 from psutil import process_iter
 from signal import SIGTERM  # or SIGKILL
-
 import config
+
+app = Flask(__name__)
 
 
 def spawn_worker(port):
-    print("Spawning worker on port: ", port)
-    p = Popen(['python ../worker/app.py ' + str(port)],
-              shell=True, stdin=None, stdout=None, stderr=None, close_fds=True)
+    try:
+        print("Spawning worker on port: ", port)
+        p = Popen(['python worker/app.py ' + str(port)],
+                  shell=True, stdin=None, stdout=None, stderr=None, close_fds=True)
+        print("****", p.pid)
+    except Exception as e:
+        print("***", e)
     return None
 
 
@@ -26,10 +31,9 @@ def close_workers(ports):
 def spawn_base_workers():
     try:
         close_workers(config.NODE_PORTS)
-        processes = []
         for i in range(config.DEFAULT_NODES):
-            p = Popen(['python ../worker/app.py ' + str(config.NODE_PORTS[i])],
-                      shell=True, stdin=None, stdout=None, stderr=None, close_fds=True)
+            Popen(['python ../worker/app.py ' + str(config.NODE_PORTS[i])],
+                  shell=True, stdin=None, stdout=None, stderr=None, close_fds=True)
 
     except Exception as e:
         print(e)

@@ -1,2 +1,4 @@
+# program to add numbers
 import sys
-print(sys.argv[1])
+
+print(sum([int(x) for x in sys.argv[1].split(" ")]))

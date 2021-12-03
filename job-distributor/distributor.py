@@ -16,7 +16,9 @@ CONN = redis.Redis(host=config.REDIS_SERVER_HOSTNAME, port=config.REDIS_SERVER_P
 
 
 class Distributor(metaclass=Singleton):
-
+    """
+    Implementation of job distributor
+    """
     def __init__(self):
         self.pool = redis.ConnectionPool(host=config.REDIS_SERVER_HOSTNAME, port=config.REDIS_SERVER_PORT)
         self.conn = redis.Redis(connection_pool=self.pool, charset="utf-8", decode_responses=True)
@@ -48,7 +50,6 @@ class Distributor(metaclass=Singleton):
                 lock.release()
         return None
 
-
     @staticmethod
     def get_worker_node():
         if config.ALGORITHM == "LRU":
@@ -60,7 +61,6 @@ class Distributor(metaclass=Singleton):
         else:
             return Distributor.get_lru_node()
         return None
-
 
     @staticmethod
     def get_lru_node():
@@ -77,14 +77,6 @@ class Distributor(metaclass=Singleton):
                             key=lambda x: x.last_executed, reverse=False)
         all_nodes = config.NODE_PORTS
         cpu_util = Distributor.get_cpu_util(available_nodes)
-
-        print("*****")
-        print("all_nodes", len(all_nodes))
-        print("available_nodes", len(available_nodes))
-        print("busy_nodes", len(busy_nodes))
-        print("NODE_PORTS", len(config.NODE_PORTS))
-        print("cpu_util", cpu_util)
-        print("DEFAULT_NODES", config.DEFAULT_NODES)
 
         if (len(all_nodes) <= len(busy_nodes)) \
                 and (len(available_nodes) == 0):
@@ -120,14 +112,6 @@ class Distributor(metaclass=Singleton):
         all_nodes = config.NODE_PORTS
         cpu_util = Distributor.get_cpu_util(available_nodes)
 
-        print("*****")
-        print("all_nodes", len(all_nodes))
-        print("available_nodes", len(available_nodes))
-        print("busy_nodes", len(busy_nodes))
-        print("NODE_PORTS", len(config.NODE_PORTS))
-        print("cpu_util", cpu_util)
-        print("DEFAULT_NODES", config.DEFAULT_NODES)
-
         if (len(all_nodes) <= len(busy_nodes)) \
                 and (len(available_nodes) == 0):
             return None
@@ -142,7 +126,7 @@ class Distributor(metaclass=Singleton):
             # return available_nodes[0]
         else:
             print(available_nodes[0])
-            return available_nodes[random.randint(0, len(available_nodes)-1)]
+            return available_nodes[random.randint(0, len(available_nodes) - 1)]
 
         return None
 
@@ -162,47 +146,45 @@ class Distributor(metaclass=Singleton):
         all_nodes = config.NODE_PORTS
         cpu_util = Distributor.get_cpu_util(available_nodes)
 
-        print("*****")
-        print("all_nodes", len(all_nodes))
-        print("available_nodes", len(available_nodes))
-        print("busy_nodes", len(busy_nodes))
-        print("NODE_PORTS", len(config.NODE_PORTS))
-        print("cpu_util", cpu_util)
-        print("DEFAULT_NODES", config.DEFAULT_NODES)
-
         if (len(all_nodes) <= len(busy_nodes)) \
                 and (len(available_nodes) == 0):
             return None
         elif len(available_nodes) == 0 or cpu_util > 50:
             # up scale
             print("Increasing the number of workers")
-            return Distributor.scale_nodes(all_nodes, busy_nodes, operation="CREATE")
+            return Distributor.scale_nodes(busy_nodes, operation="CREATE")
         elif cpu_util < 50 and len(available_nodes) > config.DEFAULT_NODES:
             # down scale
             print("Decreasing the number of workers")
-            return Distributor.scale_nodes(all_nodes, available_nodes, operation="CLOSE")
+            return Distributor.scale_nodes(available_nodes, operation="CLOSE")
             # return available_nodes[0]
         else:
             print(available_nodes[0])
-
-            return available_nodes[int(time.time()*1000)%(len(available_nodes)-1)]
+            n = len(available_nodes) - 1
+            if n != 0:
+                return available_nodes[int(time.time() * 1000) % (len(available_nodes) - 1)]
+            else:
+                return available_nodes[0]
 
         return None
 
     @staticmethod
-    def scale_nodes(all_nodes: [int], busy_nodes: [Node], operation: str):
+    def scale_nodes(busy_nodes: [Node], operation: str):
         """
         Scale nodes according to cpu usage.
         :return: None
         """
         if operation == "CREATE":
             port = config.NODE_PORTS[0]
-            print([x.host for x in busy_nodes])
+            print([x.host[-4:] for x in busy_nodes if x.host[-4:] != 'None'])
             busy_ports = [int(x.host[-4:]) for x in busy_nodes]
             print(busy_ports)
             for p in config.NODE_PORTS:
-                if p not in busy_nodes:
+                if p in busy_nodes:
+                    continue
+                else:
                     port = p
+            print("&&&&&&&&port=", port)
             spawner.spawn_worker(port)
             node = Node(host="localhost:" + str(port), status=0, last_executed=time.time() * 1000)
             CONN.hmset(name="nodes", mapping={

@@ -1,13 +1,12 @@
-from flask import Flask, request, render_template
-import random
+from flask import render_template
 import os
-import urllib.request
-from app import app
+
 from flask import Flask, request, redirect, jsonify
 from werkzeug.utils import secure_filename
 import requests
+import config
 
-ALLOWED_EXTENSIONS = set(['txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'])
+ALLOWED_EXTENSIONS = set(['py'])
 LOAD_BALANCER_URL = "http://10.0.0.14:8081/execute"
 
 
@@ -18,7 +17,7 @@ def allowed_file(filename):
 app = Flask(__name__)
 
 
-@app.route('/')
+@app.route('/', methods=["GET", "POST"])
 def Eval():
     return render_template('eval_data_1.html')
 
@@ -26,7 +25,7 @@ def Eval():
 @app.route('/stats')
 def stats():
     response = requests.get("http://localhost:8081/stats")
-    return render_template('stats.html', data=response.json().items())
+    return render_template('stats.html', data=response.json().items(), algo=config.ALGORITHM)
 
 
 @app.route('/uploader', methods=['GET', 'POST'])
@@ -50,7 +49,7 @@ def upload_file():
             response = requests.request("POST", LOAD_BALANCER_URL, headers=headers, data=payload, files=files)
             return jsonify(response.json())
         except Exception as e:
-            return jsonify(response.content.decode())
+            return jsonify(response.content)
 
 
 if __name__ == "__main__":
