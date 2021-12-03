@@ -3,6 +3,9 @@ Term project for CMPE273 Fall 21
 
 ## 1. Architecture diagram
 
+![Screenshot 2021-12-02 at 5 58 43 PM](https://user-images.githubusercontent.com/51155654/144533085-e0881bd5-1104-4a2e-b09d-99574cca86b1.png)
+
+
 
 ## 2. Job Distribution
 
