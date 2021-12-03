@@ -8,6 +8,14 @@ Term project for CMPE273 Fall 21
 
 We have made the load balancing algorithms configurable! 
 
+Algorithms:
+### 1. Least recently used
+![image](https://user-images.githubusercontent.com/18122083/144533467-21b1ec92-0cde-4f6f-ad67-22008a80f1b8.png)
+
+### 2. Random allocation
+
+### 3. Time modulus
+
 
 ## 3. Auto Scaling
 ![Screenshot 2021-12-02 at 5 33 54 PM](https://user-images.githubusercontent.com/51155654/144533282-b06dd749-7de2-4589-a3d0-d120aac0e3db.png)
