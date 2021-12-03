@@ -9,13 +9,19 @@ Term project for CMPE273 Fall 21
 
 We have made the load balancing algorithms configurable! 
 
-Algorithms:
-### 1. Least recently used
+### Cache Design
 ![image](https://user-images.githubusercontent.com/18122083/144533571-ea9ce97d-79f5-43fe-806a-98bf42ebe0ba.png)
 
+Algorithms:
+### 1. Least recently used
+Allocates the job to the lease recently used node
+
+
 ### 2. Random allocation
+Randomly allocates the job to any of the available nodes
 
 ### 3. Time modulus
+Based on the timestamp of the request, jobs are routed to any of the available nodes
 
 
 ## 3. Auto Scaling
